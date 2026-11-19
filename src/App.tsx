@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { PDFDocument, degrees } from 'pdf-lib';
 import {
@@ -29,8 +29,61 @@ export default function App() {
   const [fileInfo, setFileInfo]   = useState<{ name: string; size: string; pages?: number } | null>(null);
   const [mounted, setMounted]     = useState(false);
 
-  /* initial page-load mount trigger */
-  useEffect(() => { setMounted(true); }, []);
+  // ── Splash / hero-to-nav icon states ──────────────────────
+  type SplashPhase = 'center' | 'moving' | 'done';
+  const [splashPhase, setSplashPhase] = useState<SplashPhase>('center');
+  const navIconRef = useRef<HTMLDivElement>(null);
+  const [splashStyle, setSplashStyle] = useState<React.CSSProperties>({
+    top: '50%', left: '50%',
+    transform: 'translate(-50%, -50%) scale(1)',
+    opacity: 0,
+  });
+
+  useEffect(() => {
+    // Step 1 — fade-in icon at center of screen
+    const t1 = setTimeout(() => {
+      setSplashStyle({
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%) scale(1)',
+        opacity: 1,
+        transition: 'opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+      });
+    }, 80);
+
+    // Step 2 — fly to nav slot
+    const t2 = setTimeout(() => {
+      setSplashPhase('moving');
+      const rect = navIconRef.current?.getBoundingClientRect();
+      if (rect) {
+        const cx = rect.left + rect.width  / 2;
+        const cy = rect.top  + rect.height / 2;
+        const scaleTo = rect.width / 40; // splash icon is 40px, match target
+        setSplashStyle({
+          top:  `${cy}px`,
+          left: `${cx}px`,
+          transform: `translate(-50%, -50%) scale(${scaleTo})`,
+          opacity: 1,
+          transition:
+            'top 0.65s cubic-bezier(0.4, 0, 0.2, 1),' +
+            'left 0.65s cubic-bezier(0.4, 0, 0.2, 1),' +
+            'transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)',
+        });
+      }
+    }, 1000);
+
+    // Step 3 — fade out splash icon, reveal real nav icon
+    const t3 = setTimeout(() => {
+      setSplashStyle(s => ({ ...s, opacity: 0, transition: 'opacity 0.3s ease' }));
+    }, 1600);
+
+    // Step 4 — fully done, show rest of UI
+    const t4 = setTimeout(() => {
+      setSplashPhase('done');
+      setMounted(true);
+    }, 1950);
+
+    return () => [t1, t2, t3, t4].forEach(clearTimeout);
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -146,6 +199,35 @@ export default function App() {
       dark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900',
     )}>
 
+      {/* ── Splash: flying printer icon overlay ── */}
+      {splashPhase !== 'done' && (
+        <>
+          {/* Full-screen backdrop — only during 'center' phase */}
+          <div
+            className={cn(
+              'fixed inset-0 z-[9998] transition-opacity duration-500 pointer-events-none',
+              dark ? 'bg-gray-900' : 'bg-gray-50',
+              splashPhase === 'moving' ? 'opacity-0' : 'opacity-100',
+            )}
+          />
+
+          {/* Flying icon — fixed, positioned via inline style */}
+          <div
+            style={splashStyle}
+            className="fixed z-[9999] pointer-events-none"
+          >
+            {/* Big centered version (40px box, scale handled by splashStyle) */}
+            <div className={cn(
+              'w-10 h-10 rounded-lg flex items-center justify-center',
+              'bg-blue-600 shadow-2xl',
+              splashPhase === 'center' && 'icon-appear shadow-blue-500/40',
+            )}>
+              <Printer className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-10 border-b px-4 py-3 sm:px-6 lg:px-8 shadow-sm flex items-center justify-between',
@@ -154,10 +236,14 @@ export default function App() {
         mounted ? 'animate-fade-in-down' : 'opacity-0',
       )}>
         <div className="flex items-center space-x-3">
-          <div className={cn(
-            'bg-blue-600 p-2 rounded-lg shadow-lg transition-transform duration-200 hover:scale-110',
-            mounted && 'animate-bounce-in',
-          )}>
+          {/* Real nav icon slot — invisible while splash plays, then fades in */}
+          <div
+            ref={navIconRef}
+            className={cn(
+              'bg-blue-600 p-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-110',
+              splashPhase === 'done' ? 'opacity-100 animate-bounce-in' : 'opacity-0',
+            )}
+          >
             <Printer className="w-6 h-6 text-white" />
           </div>
           <div className={mounted ? 'animate-fade-in-up delay-100' : 'opacity-0'}>
