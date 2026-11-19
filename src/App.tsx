@@ -43,17 +43,17 @@ export default function App() {
   });
 
   useEffect(() => {
-    // Step 1 — fade-in icon at center of screen
+    // Step 1 — gentle fade-in icon at center of screen
     const t1 = setTimeout(() => {
       setSplashStyle({
         top: '50%', left: '50%',
         transform: 'translate(-50%, -50%) scale(1)',
         opacity: 1,
-        transition: 'opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
       });
-    }, 80);
+    }, 100);
 
-    // Step 2 — fly to nav slot
+    // Step 2 — relaxed, smooth glide to nav slot (1.1s flight)
     const t2 = setTimeout(() => {
       setSplashPhase('moving');
       const rect = navIconRef.current?.getBoundingClientRect();
@@ -67,15 +67,15 @@ export default function App() {
           transform: `translate(-50%, -50%) scale(${scaleTo})`,
           opacity: 1,
           transition:
-            'top 0.65s cubic-bezier(0.4, 0, 0.2, 1),' +
-            'left 0.65s cubic-bezier(0.4, 0, 0.2, 1),' +
-            'transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)',
+            'top 1.1s cubic-bezier(0.25, 1, 0.35, 1),' +
+            'left 1.1s cubic-bezier(0.25, 1, 0.35, 1),' +
+            'transform 1.1s cubic-bezier(0.25, 1, 0.35, 1)',
         });
       }
-    }, 950);
+    }, 1200);
 
-    // Step 3 — icon lands in navbar!
-    // Trigger circular shockwave and reveal whole page content from icon coordinates
+    // Step 3 — icon lands in navbar at 2300ms (1200 + 1100)
+    // Smooth circular wave unfolds page content over 1.2s
     const t3 = setTimeout(() => {
       const rect = navIconRef.current?.getBoundingClientRect();
       const cx = rect ? rect.left + rect.width / 2 : 28;
@@ -85,7 +85,7 @@ export default function App() {
       setLandingWave({ x: cx, y: cy });
 
       // Fade out flying icon (real nav icon displays simultaneously)
-      setSplashStyle(s => ({ ...s, opacity: 0, transition: 'opacity 0.15s ease' }));
+      setSplashStyle(s => ({ ...s, opacity: 0, transition: 'opacity 0.2s ease' }));
       setSplashPhase('done');
       setMounted(true);
 
@@ -102,8 +102,8 @@ export default function App() {
             { clipPath: `circle(${endRadius}px at ${cx}px ${cy}px)` }
           ],
           {
-            duration: 900,
-            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+            duration: 1200, // gentle, silky-smooth reveal
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
             fill: 'forwards'
           }
         );
@@ -114,7 +114,7 @@ export default function App() {
           setLandingWave(null);
         };
       }
-    }, 1600);
+    }, 2300);
 
     return () => [t1, t2, t3].forEach(clearTimeout);
   }, []);
@@ -177,8 +177,8 @@ export default function App() {
             ]
           },
           {
-            duration: 900, // 50% slower, smooth circular expansion
-            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            duration: 1100, // gentle, silky-smooth circular expansion
+            easing: 'cubic-bezier(0.25, 1, 0.35, 1)',
             pseudoElement: '::view-transition-new(root)'
           }
         );

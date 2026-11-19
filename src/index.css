@@ -200,7 +200,7 @@
     width: 0px;
     height: 0px;
     opacity: 0.95;
-    box-shadow: 0 0 30px 4px rgba(59, 130, 246, 0.8);
+    box-shadow: 0 0 35px 6px rgba(59, 130, 246, 0.8);
   }
   100% {
     width: 280vmax;
@@ -214,7 +214,7 @@
   position: fixed;
   border-radius: 50%;
   border: 2px solid rgba(96, 165, 250, 0.75);
-  animation: landingRippleRing 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: landingRippleRing 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
   z-index: 9995;
   transform: translate(-50%, -50%);
