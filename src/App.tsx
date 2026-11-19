@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useDropzone } from 'react-dropzone';
 import { PDFDocument, degrees } from 'pdf-lib';
 import {
@@ -90,36 +91,79 @@ export default function App() {
     try { localStorage.setItem('wbsedcl_theme', theme); } catch { /* noop */ }
   }, [theme]);
 
-  // ── Theme ripple ──────────────────────────────────────────
-  const [ripple, setRipple] = useState<{ x: number; y: number; newTheme: 'light' | 'dark' } | null>(null);
-  const [iconKey, setIconKey] = useState(0);   // re-mount icon to retrigger CSS anim
-  const [btnBurst, setBtnBurst] = useState(false);
+  // ── Theme toggle with circular View Transition ──
+  const isTransitioning = useRef(false);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
 
-  const handleToggleTheme = () => {
-    if (ripple) return; // block double-tap during animation
-    const btn = toggleBtnRef.current;
+  const handleToggleTheme = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (isTransitioning.current) return;
+
     const newTheme = theme === 'light' ? 'dark' : 'light';
+    const btn = toggleBtnRef.current;
 
-    // Button burst
-    setBtnBurst(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => setBtnBurst(true)));
+    let x = event.clientX;
+    let y = event.clientY;
+    if ((!x && !y) || (x === 0 && y === 0)) {
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      } else {
+        x = window.innerWidth / 2;
+        y = 0;
+      }
+    }
 
-    if (!btn) { setTheme(newTheme); return; }
+    // Fallback if browser does not support startViewTransition
+    if (typeof (document as any).startViewTransition !== 'function') {
+      setTheme(newTheme);
+      return;
+    }
 
-    const rect = btn.getBoundingClientRect();
-    setRipple({
-      x: Math.round(rect.left + rect.width / 2),
-      y: Math.round(rect.top + rect.height / 2),
-      newTheme,
+    isTransitioning.current = true;
+
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const transition = (document as any).startViewTransition(() => {
+      flushSync(() => {
+        setTheme(newTheme);
+      });
+      document.documentElement.classList.toggle('dark', newTheme === 'dark');
     });
-  };
 
-  const handleRippleEnd = () => {
-    if (!ripple) return;
-    setTheme(ripple.newTheme);    // apply theme once ripple covers everything
-    setIconKey(k => k + 1);       // re-trigger icon entrance animation
-    setRipple(null);
+    transition.ready
+      .then(() => {
+        const animation = document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`
+            ]
+          },
+          {
+            duration: 900, // 50% slower, smooth circular expansion
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            pseudoElement: '::view-transition-new(root)'
+          }
+        );
+
+        animation.onfinish = () => {
+          isTransitioning.current = false;
+        };
+        animation.oncancel = () => {
+          isTransitioning.current = false;
+        };
+      })
+      .catch(() => {
+        isTransitioning.current = false;
+      });
+
+    transition.finished.finally(() => {
+      isTransitioning.current = false;
+    });
   };
 
   /* ── PDF / image processing ──────────────────────────── */
@@ -258,19 +302,6 @@ export default function App() {
         </>
       )}
 
-      {/* ── Theme ripple overlay ── */}
-      {ripple && (
-        <div
-          style={{
-            '--rx': `${ripple.x}px`,
-            '--ry': `${ripple.y}px`,
-            backgroundColor: ripple.newTheme === 'dark' ? '#111827' : '#f9fafb',
-          } as React.CSSProperties}
-          className="fixed inset-0 z-[9996] pointer-events-none theme-ripple"
-          onAnimationEnd={handleRippleEnd}
-        />
-      )}
-
       {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-10 border-b px-4 py-3 sm:px-6 lg:px-8 shadow-sm flex items-center justify-between',
@@ -300,21 +331,29 @@ export default function App() {
           ref={toggleBtnRef}
           onClick={handleToggleTheme}
           className={cn(
-            'relative p-2.5 rounded-full flex items-center justify-center overflow-hidden',
-            'transition-colors duration-300',
+            'relative p-2.5 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer',
             dark
               ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
               : 'bg-gray-100 hover:bg-gray-200 text-indigo-500',
-            mounted && 'animate-fade-in delay-200',
-            btnBurst && 'toggle-burst',
+            mounted && 'animate-fade-in delay-200'
           )}
           aria-label="Toggle theme"
           title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          {/* Icon — keyed so it re-mounts & replays animation on each toggle */}
-          <span key={iconKey} className={dark ? 'icon-sun-enter' : 'icon-moon-enter'}>
-            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </span>
+          <div className="relative w-5 h-5 flex items-center justify-center">
+            <Sun
+              className={cn(
+                'w-5 h-5 absolute transition-all duration-700 ease-out',
+                dark ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0'
+              )}
+            />
+            <Moon
+              className={cn(
+                'w-5 h-5 absolute transition-all duration-700 ease-out',
+                dark ? '-rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'
+              )}
+            />
+          </div>
         </button>
       </header>
 
