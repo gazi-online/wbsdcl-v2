@@ -22,12 +22,12 @@ export default function App() {
     return 'light';
   });
 
-  const [pdfUrl, setPdfUrl]       = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [success, setSuccess]     = useState<string | null>(null);
-  const [fileInfo, setFileInfo]   = useState<{ name: string; size: string; pages?: number } | null>(null);
-  const [mounted, setMounted]     = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ name: string; size: string; pages?: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // ── Splash / hero-to-nav icon states ──────────────────────
   type SplashPhase = 'center' | 'moving' | 'done';
@@ -55,11 +55,11 @@ export default function App() {
       setSplashPhase('moving');
       const rect = navIconRef.current?.getBoundingClientRect();
       if (rect) {
-        const cx = rect.left + rect.width  / 2;
-        const cy = rect.top  + rect.height / 2;
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
         const scaleTo = rect.width / 40; // splash icon is 40px, match target
         setSplashStyle({
-          top:  `${cy}px`,
+          top: `${cy}px`,
           left: `${cx}px`,
           transform: `translate(-50%, -50%) scale(${scaleTo})`,
           opacity: 1,
@@ -91,15 +91,15 @@ export default function App() {
   }, [theme]);
 
   // ── Theme ripple ──────────────────────────────────────────
-  const [ripple, setRipple]       = useState<{ x: number; y: number; newTheme: 'light' | 'dark' } | null>(null);
-  const [iconKey, setIconKey]     = useState(0);   // re-mount icon to retrigger CSS anim
-  const [btnBurst, setBtnBurst]   = useState(false);
-  const toggleBtnRef              = useRef<HTMLButtonElement>(null);
+  const [ripple, setRipple] = useState<{ x: number; y: number; newTheme: 'light' | 'dark' } | null>(null);
+  const [iconKey, setIconKey] = useState(0);   // re-mount icon to retrigger CSS anim
+  const [btnBurst, setBtnBurst] = useState(false);
+  const toggleBtnRef = useRef<HTMLButtonElement>(null);
 
   const handleToggleTheme = () => {
     if (ripple) return; // block double-tap during animation
-    const btn        = toggleBtnRef.current;
-    const newTheme   = theme === 'light' ? 'dark' : 'light';
+    const btn = toggleBtnRef.current;
+    const newTheme = theme === 'light' ? 'dark' : 'light';
 
     // Button burst
     setBtnBurst(false);
@@ -109,8 +109,8 @@ export default function App() {
 
     const rect = btn.getBoundingClientRect();
     setRipple({
-      x: Math.round(rect.left + rect.width  / 2),
-      y: Math.round(rect.top  + rect.height / 2),
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
       newTheme,
     });
   };
@@ -133,12 +133,12 @@ export default function App() {
       if (uploadedFile.size > 20 * 1024 * 1024)
         throw new Error('File is too large. Maximum size is 20MB.');
 
-      const fileBytes  = await uploadedFile.arrayBuffer();
-      const newPdfDoc  = await PDFDocument.create();
-      const A4_WIDTH   = 595.28;
-      const A4_HEIGHT  = 841.89;
+      const fileBytes = await uploadedFile.arrayBuffer();
+      const newPdfDoc = await PDFDocument.create();
+      const A4_WIDTH = 595.28;
+      const A4_HEIGHT = 841.89;
       const TOP_MARGIN = (5 * 72) / 25.4;
-      const a4Page     = newPdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+      const a4Page = newPdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
       let originalWidth = 0, originalHeight = 0, numPages = 1;
 
       if (uploadedFile.type === 'application/pdf') {
