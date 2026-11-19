@@ -34,6 +34,8 @@ export default function App() {
   type SplashPhase = 'center' | 'moving' | 'done';
   const [splashPhase, setSplashPhase] = useState<SplashPhase>('center');
   const navIconRef = useRef<HTMLDivElement>(null);
+  const pageContainerRef = useRef<HTMLDivElement>(null);
+  const [landingWave, setLandingWave] = useState<{ x: number; y: number } | null>(null);
   const [splashStyle, setSplashStyle] = useState<React.CSSProperties>({
     top: '50%', left: '50%',
     transform: 'translate(-50%, -50%) scale(1)',
@@ -70,20 +72,51 @@ export default function App() {
             'transform 0.65s cubic-bezier(0.4, 0, 0.2, 1)',
         });
       }
-    }, 1000);
+    }, 950);
 
-    // Step 3 — fade out splash icon, reveal real nav icon
+    // Step 3 — icon lands in navbar!
+    // Trigger circular shockwave and reveal whole page content from icon coordinates
     const t3 = setTimeout(() => {
-      setSplashStyle(s => ({ ...s, opacity: 0, transition: 'opacity 0.3s ease' }));
-    }, 1600);
+      const rect = navIconRef.current?.getBoundingClientRect();
+      const cx = rect ? rect.left + rect.width / 2 : 28;
+      const cy = rect ? rect.top + rect.height / 2 : 28;
 
-    // Step 4 — fully done, show rest of UI
-    const t4 = setTimeout(() => {
+      // Start shockwave ripple ring from printer icon
+      setLandingWave({ x: cx, y: cy });
+
+      // Fade out flying icon (real nav icon displays simultaneously)
+      setSplashStyle(s => ({ ...s, opacity: 0, transition: 'opacity 0.15s ease' }));
       setSplashPhase('done');
       setMounted(true);
-    }, 1950);
 
-    return () => [t1, t2, t3, t4].forEach(clearTimeout);
+      const endRadius = Math.hypot(
+        Math.max(cx, window.innerWidth - cx),
+        Math.max(cy, window.innerHeight - cy)
+      );
+
+      if (pageContainerRef.current) {
+        pageContainerRef.current.style.opacity = '1';
+        const anim = pageContainerRef.current.animate(
+          [
+            { clipPath: `circle(0px at ${cx}px ${cy}px)` },
+            { clipPath: `circle(${endRadius}px at ${cx}px ${cy}px)` }
+          ],
+          {
+            duration: 900,
+            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+            fill: 'forwards'
+          }
+        );
+        anim.onfinish = () => {
+          if (pageContainerRef.current) {
+            pageContainerRef.current.style.clipPath = 'none';
+          }
+          setLandingWave(null);
+        };
+      }
+    }, 1600);
+
+    return () => [t1, t2, t3].forEach(clearTimeout);
   }, []);
 
   useEffect(() => {
@@ -302,7 +335,26 @@ export default function App() {
         </>
       )}
 
-      {/* ── Header ── */}
+      {/* ── Landing Shockwave Ring from Printer Icon ── */}
+      {landingWave && (
+        <div
+          style={{
+            left: `${landingWave.x}px`,
+            top: `${landingWave.y}px`,
+          }}
+          className="landing-ripple-ring"
+        />
+      )}
+
+      {/* ── Page Content (revealed circularly from the printer icon) ── */}
+      <div
+        ref={pageContainerRef}
+        style={{
+          opacity: splashPhase === 'done' ? 1 : 0,
+        }}
+        className="w-full min-h-screen flex flex-col"
+      >
+        {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-10 border-b px-4 py-3 sm:px-6 lg:px-8 shadow-sm flex items-center justify-between',
         'transition-colors duration-300',
@@ -635,6 +687,7 @@ export default function App() {
 
         </div>
       </main>
+      </div>
     </div>
   );
 }
