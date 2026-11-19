@@ -90,7 +90,37 @@ export default function App() {
     try { localStorage.setItem('wbsedcl_theme', theme); } catch { /* noop */ }
   }, [theme]);
 
-  const toggleTheme = () => setTheme(p => p === 'light' ? 'dark' : 'light');
+  // ── Theme ripple ──────────────────────────────────────────
+  const [ripple, setRipple]       = useState<{ x: number; y: number; newTheme: 'light' | 'dark' } | null>(null);
+  const [iconKey, setIconKey]     = useState(0);   // re-mount icon to retrigger CSS anim
+  const [btnBurst, setBtnBurst]   = useState(false);
+  const toggleBtnRef              = useRef<HTMLButtonElement>(null);
+
+  const handleToggleTheme = () => {
+    if (ripple) return; // block double-tap during animation
+    const btn        = toggleBtnRef.current;
+    const newTheme   = theme === 'light' ? 'dark' : 'light';
+
+    // Button burst
+    setBtnBurst(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setBtnBurst(true)));
+
+    if (!btn) { setTheme(newTheme); return; }
+
+    const rect = btn.getBoundingClientRect();
+    setRipple({
+      x: Math.round(rect.left + rect.width  / 2),
+      y: Math.round(rect.top  + rect.height / 2),
+      newTheme,
+    });
+  };
+
+  const handleRippleEnd = () => {
+    if (!ripple) return;
+    setTheme(ripple.newTheme);    // apply theme once ripple covers everything
+    setIconKey(k => k + 1);       // re-trigger icon entrance animation
+    setRipple(null);
+  };
 
   /* ── PDF / image processing ──────────────────────────── */
   const processFile = async (uploadedFile: File) => {
@@ -228,6 +258,19 @@ export default function App() {
         </>
       )}
 
+      {/* ── Theme ripple overlay ── */}
+      {ripple && (
+        <div
+          style={{
+            '--rx': `${ripple.x}px`,
+            '--ry': `${ripple.y}px`,
+            backgroundColor: ripple.newTheme === 'dark' ? '#111827' : '#f9fafb',
+          } as React.CSSProperties}
+          className="fixed inset-0 z-[9996] pointer-events-none theme-ripple"
+          onAnimationEnd={handleRippleEnd}
+        />
+      )}
+
       {/* ── Header ── */}
       <header className={cn(
         'sticky top-0 z-10 border-b px-4 py-3 sm:px-6 lg:px-8 shadow-sm flex items-center justify-between',
@@ -252,19 +295,24 @@ export default function App() {
           </div>
         </div>
 
+        {/* Theme toggle button */}
         <button
-          onClick={toggleTheme}
+          ref={toggleBtnRef}
+          onClick={handleToggleTheme}
           className={cn(
-            'relative p-2.5 rounded-full flex items-center justify-center',
-            'transition-all duration-300 hover:scale-110 active:scale-95',
-            'btn-press',
-            dark ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600',
+            'relative p-2.5 rounded-full flex items-center justify-center overflow-hidden',
+            'transition-colors duration-300',
+            dark
+              ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
+              : 'bg-gray-100 hover:bg-gray-200 text-indigo-500',
             mounted && 'animate-fade-in delay-200',
+            btnBurst && 'toggle-burst',
           )}
           aria-label="Toggle theme"
           title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          <span className={cn('transition-all duration-300', dark ? 'rotate-0 scale-100' : '-rotate-90 scale-75')}>
+          {/* Icon — keyed so it re-mounts & replays animation on each toggle */}
+          <span key={iconKey} className={dark ? 'icon-sun-enter' : 'icon-moon-enter'}>
             {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </span>
         </button>
