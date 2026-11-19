@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { PDFDocument, degrees } from 'pdf-lib';
 import { 
@@ -13,17 +13,36 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export default function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wbsedcl_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<{name: string, size: string, pages?: number} | null>(null);
 
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem('wbsedcl_theme', theme);
+    } catch {
+      // ignore localstorage errors
+    }
+  }, [theme]);
+
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    document.documentElement.classList.toggle('dark');
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
   const processFile = async (uploadedFile: File) => {
@@ -234,13 +253,14 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xl font-bold">WBSEDCL DC Auto Print</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Professional Receipt Utility</p>
+            <p className={cn("text-xs", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>Professional Receipt Utility</p>
           </div>
         </div>
         <button
           onClick={toggleTheme}
-          className={cn("p-2 rounded-full transition-colors", theme === 'dark' ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200")}
+          className={cn("p-2.5 rounded-full transition-colors flex items-center justify-center", theme === 'dark' ? "bg-gray-700 hover:bg-gray-600 text-yellow-400" : "bg-gray-100 hover:bg-gray-200 text-gray-600")}
           aria-label="Toggle theme"
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
@@ -256,22 +276,27 @@ export default function App() {
                 className={cn(
                   "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 group",
                   isDragActive ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : 
-                  theme === 'dark' ? "border-gray-700 hover:border-blue-500 hover:bg-gray-800" : "border-gray-300 hover:border-blue-500 hover:bg-blue-50/50"
+                  theme === 'dark' ? "border-gray-700 hover:border-blue-500 hover:bg-gray-800/80 bg-gray-800/40" : "border-gray-300 hover:border-blue-500 hover:bg-blue-50/50 bg-white"
                 )}
               >
                 <input {...getInputProps()} />
-                <div className="bg-blue-100 dark:bg-blue-900/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform", theme === 'dark' ? "bg-blue-950/60 text-blue-400" : "bg-blue-100 text-blue-600")}>
+                  <Upload className="w-8 h-8" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Upload WBSEDCL Receipt</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <p className={cn("text-sm mb-4 transition-colors", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>
                   Drag & drop your PDF or Image here, or click to browse
                 </p>
-                <div className="flex flex-wrap justify-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-                  <span className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">PDF</span>
-                  <span className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">PNG</span>
-                  <span className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">JPG</span>
-                  <span className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800">Max 20MB</span>
+                <div className="flex flex-wrap justify-center gap-2 text-xs">
+                  {['PDF', 'PNG', 'JPG', 'Max 20MB'].map((tag) => (
+                    <span 
+                      key={tag} 
+                      className={cn("px-2.5 py-1 rounded-md font-medium border transition-colors", 
+                        theme === 'dark' ? "bg-gray-800 text-gray-400 border-gray-700" : "bg-gray-100 text-gray-600 border-gray-200")}
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -280,7 +305,7 @@ export default function App() {
               <div className={cn("rounded-xl p-10 text-center flex flex-col items-center justify-center border", theme === 'dark' ? "bg-gray-800 border-gray-700" : "bg-white shadow-sm border-gray-200")}>
                 <RotateCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
                 <h3 className="text-lg font-medium">Processing Document...</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <p className={cn("text-sm mt-2 transition-colors", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>
                   Auto-detecting orientation and formatting for A4 Print
                 </p>
               </div>
@@ -288,7 +313,7 @@ export default function App() {
 
             {pdfUrl && !isProcessing && (
               <div className={cn("rounded-xl p-6 shadow-sm border space-y-6", theme === 'dark' ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200")}>
-                <div className="flex items-start space-x-3 text-green-600 dark:text-green-400">
+                <div className={cn("flex items-start space-x-3", theme === 'dark' ? "text-green-400" : "text-green-600")}>
                   <CheckCircle className="w-6 h-6 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold">Ready for Print</h3>
@@ -297,18 +322,18 @@ export default function App() {
                 </div>
 
                 {fileInfo && (
-                  <div className={cn("p-4 rounded-lg text-sm space-y-2", theme === 'dark' ? "bg-gray-900/50" : "bg-gray-50")}>
+                  <div className={cn("p-4 rounded-lg text-sm space-y-2 border", theme === 'dark' ? "bg-gray-900/60 border-gray-700" : "bg-gray-50 border-gray-200")}>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">File Name:</span>
+                      <span className={theme === 'dark' ? "text-gray-400" : "text-gray-500"}>File Name:</span>
                       <span className="font-medium truncate ml-4" title={fileInfo.name}>{fileInfo.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Size:</span>
+                      <span className={theme === 'dark' ? "text-gray-400" : "text-gray-500"}>Size:</span>
                       <span className="font-medium">{fileInfo.size}</span>
                     </div>
                     {fileInfo.pages !== undefined && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-gray-400">Pages:</span>
+                        <span className={theme === 'dark' ? "text-gray-400" : "text-gray-500"}>Pages:</span>
                         <span className="font-medium">{fileInfo.pages}</span>
                       </div>
                     )}
@@ -318,7 +343,7 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button 
                     onClick={handlePrint}
-                    className="flex items-center justify-center space-x-2 w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                    className="flex items-center justify-center space-x-2 w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm cursor-pointer"
                   >
                     <Printer className="w-5 h-5" />
                     <span>Print Now</span>
@@ -326,7 +351,7 @@ export default function App() {
                   <a 
                     href={pdfUrl}
                     download={`ReadyForPrint_${fileInfo?.name || 'document.pdf'}`}
-                    className={cn("flex items-center justify-center space-x-2 w-full py-3 px-4 rounded-lg font-medium transition-colors border", 
+                    className={cn("flex items-center justify-center space-x-2 w-full py-3 px-4 rounded-lg font-medium transition-colors border cursor-pointer", 
                       theme === 'dark' ? "border-gray-600 hover:bg-gray-700 text-gray-200" : "border-gray-300 hover:bg-gray-50 text-gray-700")}
                   >
                     <Download className="w-5 h-5" />
@@ -336,7 +361,7 @@ export default function App() {
                 
                 <button 
                   onClick={handleReset}
-                  className="flex items-center justify-center space-x-2 w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  className={cn("flex items-center justify-center space-x-2 w-full py-2 text-sm transition-colors cursor-pointer", theme === 'dark' ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700")}
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Upload Another File</span>
@@ -345,7 +370,7 @@ export default function App() {
             )}
 
             {error && (
-              <div className="flex items-start space-x-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400">
+              <div className={cn("flex items-start space-x-3 p-4 border rounded-xl", theme === 'dark' ? "bg-red-950/30 border-red-800 text-red-300" : "bg-red-50 border-red-200 text-red-600")}>
                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <div className="text-sm font-medium">{error}</div>
               </div>
@@ -356,7 +381,7 @@ export default function App() {
                 <Info className="w-5 h-5 text-blue-500" />
                 <span>Features</span>
               </h3>
-              <ul className="text-sm space-y-2 text-gray-600 dark:text-gray-300">
+              <ul className={cn("text-sm space-y-2", theme === 'dark' ? "text-gray-300" : "text-gray-600")}>
                 <li className="flex items-start space-x-2">
                   <span className="text-blue-500 mt-1">•</span>
                   <span>Auto-detects Landscape & rotates to Portrait.</span>
@@ -380,15 +405,15 @@ export default function App() {
 
           <div className="lg:col-span-7">
             <div className={cn("h-[600px] lg:h-[calc(100vh-12rem)] rounded-xl border shadow-sm overflow-hidden flex flex-col", theme === 'dark' ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200")}>
-              <div className={cn("py-3 px-4 border-b flex items-center justify-between", theme === 'dark' ? "border-gray-700 bg-gray-800/80" : "border-gray-200 bg-gray-50")}>
+              <div className={cn("py-3 px-4 border-b flex items-center justify-between", theme === 'dark' ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50")}>
                 <h3 className="font-medium flex items-center space-x-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
+                  <FileText className={cn("w-4 h-4", theme === 'dark' ? "text-gray-400" : "text-gray-500")} />
                   <span>Live Preview</span>
                 </h3>
-                {pdfUrl && <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded font-medium">A4 Portrait</span>}
+                {pdfUrl && <span className={cn("text-xs px-2 py-1 rounded font-medium", theme === 'dark' ? "bg-blue-950 text-blue-300 border border-blue-800" : "bg-blue-100 text-blue-700")}>A4 Portrait</span>}
               </div>
               
-              <div className="flex-1 bg-gray-200 dark:bg-gray-900 relative">
+              <div className={cn("flex-1 relative transition-colors", theme === 'dark' ? "bg-gray-900" : "bg-gray-200")}>
                 {pdfUrl ? (
                   <iframe 
                     src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`} 
@@ -396,8 +421,8 @@ export default function App() {
                     title="PDF Preview"
                   />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 p-6 text-center">
-                    <FileText className="w-16 h-16 mb-4 opacity-50" />
+                  <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-6 text-center transition-colors", theme === 'dark' ? "text-gray-400" : "text-gray-500")}>
+                    <FileText className="w-16 h-16 mb-4 opacity-40" />
                     <p className="text-lg font-medium mb-1">No preview available</p>
                     <p className="text-sm">Upload a receipt to see the print-ready preview here</p>
                   </div>
